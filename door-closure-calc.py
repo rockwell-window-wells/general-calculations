@@ -37,7 +37,7 @@ for i in range(len(theta_open)):
     else:
         force[i] = (weight/2.0)*np.sin(angle*np.pi/180.0) - nsprings*(kappa*(angle-theta_dead)*np.pi)/(180.0*height)
 
-print("Maximum force: {} lbs".format(max(force)))
+print("\nMaximum force, Concept 1: {} lbs".format(max(force)))
 
 fig1 = plt.figure(1)
 plt.plot(theta_open,force)
@@ -46,10 +46,41 @@ plt.ylabel("Force (lbf)")
 titlestring = "{} Torsion Springs, Dead Angle {} Degrees".format(nsprings, theta_dead)
 plt.title(titlestring)
 fig1.suptitle("Concept 1: Torsion Springs Only")
-plt.show()
+# plt.show()
 
 
 
 
 ########## Pulley and cable option ##########
-P0 = 5.0    # Preload exerted by rotational spring
+P0 = 1.0    # Preload exerted by rotational spring on the door, lbf
+delta_p = 5.0                   # Pulley height above the door
+h_pulley = height + delta_p     # Pulley actual height
+L = height                      # Renaming door height to make equations short
+weight_rating = 150.0           # Weight rating of garage door spring
+nrotations = 8                  # Expected number of rotations (approx. # feet of garage door)
+theta_max_rad = 2*np.pi*nrotations
+R = 2.0     # Radius of rotational spring drum, in
+kappa = weight_rating*R / theta_max_rad
+# torque_rating = 9.5   # Spring torque rating, lbf*in
+# kappa = torque_rating/theta_max_rad     # lbf*in/rad
+nsprings = 2
+
+force = np.zeros(theta_open.shape)
+
+for i in range(len(theta_open)):
+    angle = theta_open[i]*np.pi/180.0
+    c = np.sqrt(h_pulley**2 + L**2 -2*h_pulley*L*np.cos(angle))
+    omega = c/R
+    P = P0 + nsprings*kappa*c/R
+    force[i] = (weight/2.0)*np.sin(angle) - P*np.sin(np.arcsin(h_pulley*np.sin(angle)/c))
+
+print("\nMaximum force, Concept 2: {} lbs".format(max(force)))
+
+fig2 = plt.figure(2)
+plt.plot(theta_open,force)
+plt.xlabel("Angle (deg)")
+plt.ylabel("Force (lbf)")
+titlestring = "{} Torsion Springs".format(nsprings)
+plt.title(titlestring)
+fig2.suptitle("Concept 2: Cables and Pulley")
+plt.show()
