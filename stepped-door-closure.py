@@ -29,9 +29,9 @@ k0 = tr0/theta_max_rad        # Torsional spring constant, (lbf*in/rad)
 print("\nExisting spring constant: {} lbf*in/rad\n".format(k0))
 
 ##### Design parameters #####
-theta_engage  = [0.0, 45.0]    # Angles at which a new number of springs start to engage (deg)
-nsprings      = [2, 4]                  # Number of springs at each angle that will engage
-torque_rating = [tr0, tr0]
+theta_engage  = [0.0, 15.0]    # Angles at which a new number of springs start to engage (deg)
+nsprings      = [2, 3]                  # Number of springs at each angle that will engage
+torque_rating = [2000.0, 2000.0]     # Spring torque rating (lbf*in)
 
 # Make checks and make intermediate calculations
 assert (len(theta_engage) == len(nsprings)) and (len(theta_engage) == len(torque_rating))
@@ -63,9 +63,27 @@ plt.ylabel("Force (lbf)")
 
 titlestring = "{} Total Springs: ".format(tot_springs)
 for i in range(len(theta_engage)):
-    addstring = "{} at {} deg, ".format(nsprings[i], theta_engage[i])
+    addstring = "{} {}s at {} deg, ".format(nsprings[i], int(torque_rating[i]), theta_engage[i])
     titlestring += addstring
 titlestring = titlestring[:-2]
 plt.title(titlestring)
+
+maxstring = "Max push force: {}".format(np.around(max(force)),1)
+maxind = np.argmax(force)
+maxpt = (30.0, force[maxind]/2)
+print(maxpt)
+
+minstring = "Max pull force: {}".format(np.around(min(force)),1)
+minind = np.argmin(force)
+minpt = (30.0, force[maxind]/3)
+
+plt.annotate(maxstring, maxpt)
+if min(force) < 0:
+    plt.annotate(minstring, minpt)
+    
 fig1.suptitle("Concept 1: Torsion Springs Only")
 plt.show()
+
+print("Max push force: {}".format(max(force)))
+if min(force) < 0:
+    print("Max pull force: {}".format(min(force)))
