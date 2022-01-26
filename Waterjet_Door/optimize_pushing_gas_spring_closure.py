@@ -61,14 +61,17 @@ beta = [m.Intermediate(thetarad[i] - phi[i]) for i in range(npts)]
 force = [m.Intermediate((W*Lw*m.sin(psi[i]) - ns*S*ds*m.sin(beta[i])) / Lf) for i in range(npts)]
 
 # Spring length constraint
-maxspring = m.Intermediate(0.0) # Maxspring starts from 0 and grows until the max value is found
-minspring = m.Intermediate(1000.0) # Minspring starts from 1000 and is diminished until the min is found
+maxspring = ls[0] # Maxspring starts from 0 and grows until the max value is found
+minspring = ls[0] # Minspring starts from 1000 and is diminished until the min is found
 for i,lsi in enumerate(ls):
-    # print(lsi.value)
-    if lsi.value > maxspring.value:
-        maxspring.value = lsi.value
-    if lsi.value < minspring.value:
-        minspring.value = lsi.value
+    maxspring = m.max3(maxspring,lsi)
+    minspring = m.min3(minspring,lsi)
+
+    # # print(lsi.value)
+    # if lsi.value > maxspring.value:
+    #     maxspring.value = lsi.value
+    # if lsi.value < minspring.value:
+    #     minspring.value = lsi.value
 
 # print("minspring: {}".format(minspring.value))
 # print("maxspring: {}".format(maxspring.value))
@@ -89,4 +92,4 @@ m.Minimize(sumabsforce)
 m.options.SOLVER=1
 # m.open_folder()
 m.solve()
-print(ds.value[0], S.value[0], xp.value[0], yp.value[0], minspring.value, maxspring.value)
+print(ds.value[0], S.value[0], xp.value[0], yp.value[0], minspring.value[0], maxspring.value[0])

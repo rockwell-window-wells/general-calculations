@@ -16,7 +16,7 @@ npts = 90
 theta = np.linspace(min_open, max_open, num=npts, endpoint=True)
 
 # Door parameters
-weight = 300.0                          # Door weight, lbs (estimate 250)
+weight = 250.0                          # Door weight, lbs (estimate 250)
 L_door = 45.0                           # Height from pivot point to top of door
 cm_factor = 2/3     # Factor for where center of mass of door is relative to pivot
 l_c_door = cm_factor*L_door # Moment arm for center of mass of door
@@ -29,9 +29,9 @@ k0 = tr0/theta_max_rad        # Torsional spring constant, (lbf*in/rad)
 print("\nExisting spring constant: {} lbf*in/rad\n".format(k0))
 
 ##### Design parameters #####
-theta_engage  = [0.0, 15.0]    # Angles at which a new number of springs start to engage (deg)
-nsprings      = [2, 3]                  # Number of springs at each angle that will engage
-torque_rating = [2000.0, 2000.0]     # Spring torque rating (lbf*in)
+theta_engage  = [0.0]          # Angles at which a new number of springs start to engage (deg)
+nsprings      = [1]                  # Number of springs at each angle that will engage
+torque_rating = [7800.0]     # Spring torque rating (lbf*in)
 
 # Make checks and make intermediate calculations
 assert (len(theta_engage) == len(nsprings)) and (len(theta_engage) == len(torque_rating))

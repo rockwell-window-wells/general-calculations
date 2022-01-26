@@ -40,8 +40,8 @@ S_vec = np.linspace(S_lb, S_ub, npts_var, endpoint=True)       # Force rating (l
 wp_ub = 5.0
 wp_lb = -5.0
 wp_vec= np.linspace(wp_lb, wp_ub, npts_var, endpoint=True)        # Horizontal position of the fixed end of the gas spring, relative to the door pivot point
-hp_ub = 15.0
-hp_lb = 17.5
+hp_ub = 17.5
+hp_lb = 12.0
 hp_vec = np.linspace(hp_lb, hp_ub, npts_var, endpoint=True)         # Vertical position of the fixed end of the gas spring, relative to the door pivot point (max value 23.5 inches, negative)
 
 ### Torsion spring parameters ###
