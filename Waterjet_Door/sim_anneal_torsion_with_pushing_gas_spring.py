@@ -30,8 +30,8 @@ def objective(parameters):
 
     ### Torsion spring parameters ###
     theta_max_rad = np.pi/2.0
-    nsprings = 4                # Number of torsion springs
-    torque_rating = 1875.0      # Torsion spring torque rating (in*lbs) (4 1877.0 rated springs balances the door at 90 degrees)
+    nsprings = 2                # Number of torsion springs
+    torque_rating = 2000.0      # Torsion spring torque rating (in*lbs) (4 1877.0 rated springs balances the door at 90 degrees)
     kappa_tor = torque_rating/theta_max_rad
 
     ### Derived parameters ###
@@ -79,7 +79,7 @@ def Boltzmann(dE, dEavg, T):
 def SimAnneal(ds0, S0, xp0, yp0):
     # Starting design
     xs = np.array([ds0, S0, xp0, yp0])
-    xub = np.array([15.0, 500.0, -1.0, -1.0])
+    xub = np.array([5.75, 500.0, -1.0, -1.0])
     xlb = np.array([1.0, 5.0, -40.0, -23.5])
     if xs[0] > xub[0]:
         raise ValueError("ds0 out of bounds")
@@ -202,7 +202,7 @@ def SimAnneal(ds0, S0, xp0, yp0):
     return perturbations, objvals, xsearch
 
 if __name__ == '__main__':
-    perturbations, objvals, xsearch = SimAnneal(13.4, 100.2, -1.3, -8.3)
+    perturbations, objvals, xsearch = SimAnneal(2.0, 100.2, -1.3, -8.3)
 
     ds_end = xsearch[-1][0]
     S_end = xsearch[-1][1]
@@ -225,5 +225,5 @@ if __name__ == '__main__':
     plt.annotate(end_annotation, (perturbations[-1], objvals[-1]), (0.8*perturbations[-1], 0.8*np.max(objvals)), arrowprops=dict(facecolor='black', shrink = 0.01, width=0.5))
     best_annotation = "Best design:\nObj: {}\nds: {}\nS: {}\nxp: {}\nyp: {}".format(objvals[best_ind],ds_best, S_best, xp_best, yp_best)
     mid_ind = int(len(perturbations)/3)
-    plt.annotate(best_annotation, (perturbations[best_ind], objvals[best_ind]), (mid_ind, 0.75*np.max(objvals)), arrowprops=dict(facecolor='black', shrink = 0.01, width=0.5))
+    plt.annotate(best_annotation, (perturbations[best_ind], objvals[best_ind]), (0, 0.25*(np.max(objvals)-np.min(objvals))+np.min(objvals)), arrowprops=dict(facecolor='black', shrink = 0.01, width=0.5))
     plt.show()
