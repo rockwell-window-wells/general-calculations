@@ -22,7 +22,7 @@ def objective(parameters):
     wdoor = 5.75    # Length from the pivot point to the line of the door (the short part of the L shape made by the door)
     ns = 2          # Number of gas springs in the design
 
-    min_angle = 1.0
+    min_angle = 0.0
     max_angle = 90.0
     npts = 90
     theta = np.linspace(min_angle, max_angle, num=npts, endpoint=True)

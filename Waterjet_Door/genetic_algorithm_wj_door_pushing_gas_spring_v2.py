@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 23 14:17:54 2022
+Created on Thur Jun 30 11:36:00 2022
 
 @author: Ryan.Larson
 """
@@ -14,14 +14,12 @@ def objective_function(parameters):
     """
     # Read in parameter values from parameter list
     ds = parameters[0]
-    S = parameters[1]
-    wp = parameters[2]
-    hp = parameters[3]
-    l_ext = parameters[4]
-    l_comp = parameters[5]
-    
-    # Assume the design is feasible
-    feasible = True
+    hs = parameters[1]
+    S = parameters[2]
+    xp = parameters[3]
+    yp = parameters[4]
+    l_ext = parameters[5]
+    l_comp = parameters[6]
 
     ### Fixed parameters ###
     Ldoor = 45.0            # Length of door
@@ -40,15 +38,34 @@ def objective_function(parameters):
 
     ### Torsion spring parameters ###
     theta_max_rad = np.pi/2.0
-    nsprings = 2                # Number of torsion springs
+    nsprings = 4                # Number of torsion springs
     torque_rating = 2000.0      # Torsion spring torque rating (in*lbs) (4 1877.0 rated springs balances the door at 90 degrees)
     kappa_tor = torque_rating/theta_max_rad
 
     ### Derived parameters ###
     # S:
-    xs = wdoor*np.cos(thetarad) + ds*np.sin(thetarad)
-    ys = ds*np.cos(thetarad) - wdoor*np.sin(thetarad)
-    Ls = np.sqrt(wdoor**2 + ds**2)
+    nu = np.arctan(hs/ds)
+    sigma = thetarad - nu
+    Ls = np.sqrt(ds**2 + hs**2)
+    xs = Ls*np.cos(sigma)
+    ys = Ls*np.sin(sigma)
+    
+    # Line equation for gas spring
+    m_closed = (ys[0] - yp) / (xs[0] - xp)
+    m_open = (ys[-1] - yp) / (xs[-1] - xp)
+    
+    b_closed = ys[0] - m_closed*xs[0]
+    b_open = ys[-1] - m_open*xs[-1]
+    
+    # Corner points that must not be intersected
+    x_corner_closed = 4.75
+    y_corner_closed = 2.25 - 0.5
+    x_corner_open = 2.25
+    y_corner_open = -4.75 - 0.5
+    
+    # Check if the gas spring line is below the corner point
+    spring_closed_ht = m_closed*x_corner_closed + b_closed
+    spring_open_ht = m_open*x_corner_open + b_open
 
     # W:
     xw = wdoor*np.cos(thetarad) + Lcm*np.sin(thetarad)
@@ -61,29 +78,43 @@ def objective_function(parameters):
     Lf = np.sqrt(wdoor**2 + Ldoor**2)
 
     # Gas spring length
-    ls = np.sqrt((xs - wp)**2 + (hp - ys)**2)
-    lsmin = np.min(ls)
-    lsmax = np.max(ls)
+    ls = np.sqrt((np.abs(xp) + xs)**2 + (yp - ys)**2)
+    maxspring = np.around(max(ls), 1)
+    minspring = np.around(min(ls), 1)
     
-    if lsmax > l_ext:
+    if maxspring > l_ext:
         feasible = False
-    if lsmin < l_comp:
+    if minspring < l_comp:
+        feasible = False
+    if spring_closed_ht > y_corner_closed:
+        feasible = False
+    if spring_open_ht > y_corner_open:
         feasible = False
 
     # Angles
-    phi = np.arctan((hp-ys)/(xs-wp))
-    beta = np.arctan(ys/xs)
     gamma = np.arctan(yw/xw)
     kappa = np.arctan(yf/xf)
-    alpha = beta + phi
     psi = np.pi/2 - gamma
-
+    phi = np.arctan((yp-ys)/(np.abs(xp)+xs))
+    beta = sigma + phi
+    
+    # Actual closing force curve
+    close_angles = np.array([1, 30, 45, 60, 90])
+    close_angles_rad = (np.pi/180)*close_angles
+    close_force = np.array([22, 70, 80, 89, 0])
+    # Develop function for new angles
+    z_close = np.polyfit(close_angles_rad, close_force, 3)
+    f_close = np.poly1d(z_close)
 
     ### Force and extension ###
     force = np.zeros(thetarad.shape)
     for i in range(len(thetarad)):
         angle = thetarad[i]
-        force[i] = (W*Lw*np.sin(psi[i]) - ns*S*Ls*np.sin(alpha[i]) - kappa_tor*angle*nsprings) / Lf
+        # force[i] = (W*Lw*np.sin(psi[i]) - ns*S*Ls*np.sin(beta[i])  - kappa_tor*angle*nsprings) / Lf
+        door_component = f_close(angle)
+        gas_spring_component = ns*S*Ls*np.sin(beta[i]) / Lf
+
+        force[i] = door_component - gas_spring_component
 
     # Minimize the range between the min and max forces
     minabsforce = np.abs(min(force))
@@ -95,12 +126,13 @@ def objective_function(parameters):
 
 def generate_feasible_individual(l_ratio_min):
     # Define range for inputs
-    ds_min, ds_max = 1.0, 30.0
-    S_min, S_max = 5.0, 500.0
-    wp_min, wp_max = -15.0, 5.0
-    hp_min, hp_max = 10.0, 16.5
-    l_ext_min, l_ext_max = 15.0, 35.0
-    l_comp_min, l_comp_max = 5.0, 15.0
+    ds_min, ds_max = 12.0, 17.0
+    hs_min, hs_max = -0.9, 0.75
+    S_min, S_max = 240.0, 250.0
+    xp_min, xp_max = -7.5, -4.75
+    yp_min, yp_max = -0.85, 2.0
+    l_ext_min, l_ext_max = 16.0, 35.5
+    l_comp_min, l_comp_max = 17.63, 22.0
     
     # l_ratio_min = 0.55
     
@@ -108,9 +140,10 @@ def generate_feasible_individual(l_ratio_min):
     
     while feasible == False:
         ds = np.random.uniform(ds_min, ds_max)
+        hs = np.random.uniform(hs_min, hs_max)
         S = np.random.uniform(S_min, S_max)
-        wp = np.random.uniform(wp_min, wp_max)
-        hp = np.random.uniform(hp_min, hp_max)
+        xp = np.random.uniform(xp_min, xp_max)
+        yp = np.random.uniform(yp_min, yp_max)
         l_comp = np.random.uniform(l_comp_min, l_comp_max)
         if l_comp/l_ratio_min <= l_ext_max:
             l_ext_alt = l_comp/l_ratio_min
@@ -119,16 +152,15 @@ def generate_feasible_individual(l_ratio_min):
             
         l_ext = max(np.random.uniform(l_comp, l_ext_max), l_ext_alt)
         
-        feasible = check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, True)
+        feasible = check_design_feasibility(ds, hs, S, xp, yp, l_ext, l_comp, l_ratio_min, False)
             
-    parameters = [ds, S, wp, hp, l_ext, l_comp]
+    parameters = [ds, hs, S, xp, yp, l_ext, l_comp]
     # print("Parameters: {}".format(parameters))
-    print("\n\nFEASIBLE INDIVIDUAL GENERATED!\n\n")
     
     return parameters
 
 
-def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain):
+def check_design_feasibility(ds, hs, S, xp, yp, l_ext, l_comp, l_ratio_min, explain):
     feasible = True
     
     while True:
@@ -155,12 +187,14 @@ def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain)
         npts = 90
         theta = np.linspace(min_angle, max_angle, num=npts, endpoint=True)
         thetarad = theta*np.pi/180.0
-
-        xs = wdoor*np.cos(thetarad) + ds*np.sin(thetarad)
-        ys = ds*np.cos(thetarad) - wdoor*np.sin(thetarad)
+        
+        nu = np.arctan(hs/ds)
+        sigma = thetarad - nu
+        xs = np.sqrt(ds**2 + hs**2)*np.cos(sigma)
+        ys = np.sqrt(ds**2 + hs**2)*np.sin(sigma)
     
         # Gas spring length
-        ls = np.sqrt((xs - wp)**2 + (hp - ys)**2)
+        ls = np.sqrt((np.abs(xp) + xs)**2 + (yp - ys)**2)
         maxspring = np.around(np.max(ls), 1)    # Maximum spring extension
         minspring = np.around(np.min(ls), 1)    # Minimum spring extension
         
@@ -175,11 +209,34 @@ def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain)
                 print("\nMin spring length violated by {}".format(l_comp-minspring))
             break
         
+        # # 4th check: Clearance under the frame corner
+        # # Line equation for gas spring
+        # m_closed = (ys[0] - yp) / (xs[0] - xp)
+        # m_open = (ys[-1] - yp) / (xs[-1] - xp)
+        
+        # b_closed = ys[0] - m_closed*xs[0]
+        # b_open = ys[-1] - m_open*xs[-1]
+        
+        # # Corner points that must not be intersected
+        # x_corner_closed = 4.75
+        # y_corner_closed = 2.25 - 0.25
+        # x_corner_open = 2.25
+        # y_corner_open = -4.75 - 0.25
+        
+        # # Check if the gas spring line is below the corner point
+        # spring_closed_ht = m_closed*x_corner_closed + b_closed
+        # spring_open_ht = m_open*x_corner_open + b_open
+        
+        # if spring_closed_ht > y_corner_closed:
+        #     feasible = False
+        # if spring_open_ht > y_corner_open:
+        #     feasible = False
+        
+        # If the design has passed all feasibility checks, exit the while loop
         if feasible == True:
             break
         
     return feasible
-
 
 # Tournament selection
 def selection(pop, scores, k=3):
@@ -213,12 +270,13 @@ def crossover(p1, p2, r_cross, r_mut):
 # Mutation
 def mutation(individual, r_mut):
     # Define range for inputs
-    ds_min, ds_max = 1.0, 30.0
-    S_min, S_max = 5.0, 500.0
-    wp_min, wp_max = -15.0, 5.0
-    hp_min, hp_max = 10.0, 16.5
-    l_ext_min, l_ext_max = 15.0, 35.0
-    l_comp_min, l_comp_max = 5.0, 15.0        
+    ds_min, ds_max = 12.0, 17.0
+    hs_min, hs_max = -0.9, 0.75
+    S_min, S_max = 240.0, 250.0
+    xp_min, xp_max = -7.5, -4.75
+    yp_min, yp_max = -0.85, 2.0
+    l_ext_min, l_ext_max = 16.0, 35.5
+    l_comp_min, l_comp_max = 17.63, 22.0
         
     for i in range(len(individual)):
         # Check for a mutation
@@ -226,14 +284,16 @@ def mutation(individual, r_mut):
             if i == 0:
                 individual[i] = np.random.uniform(ds_min, ds_max)
             elif i == 1:
+                individual[i] = np.random.uniform(hs_min, hs_max)
+            elif i == 2:
                 individual[i] = np.random.uniform(S_min, S_max)
-            elif i == 1:
-                individual[i] = np.random.uniform(wp_min, wp_max)
-            elif i == 1:
-                individual[i] = np.random.uniform(hp_min, hp_max)
-            elif i == 1:
+            elif i == 3:
+                individual[i] = np.random.uniform(xp_min, xp_max)
+            elif i == 4:
+                individual[i] = np.random.uniform(yp_min, yp_max)
+            elif i == 5:
                 individual[i] = np.random.uniform(l_ext_min, l_ext_max)
-            elif i == 1:
+            elif i == 6:
                 individual[i] = np.random.uniform(l_comp_min, l_comp_max)
     
 
@@ -269,8 +329,8 @@ def genetic_algorithm(objective, n_iter, n_pop, r_cross, r_mut, l_ratio_min):
             loop_counter = 0
             while feasible == False:
                 c1, c2 = crossover(p1, p2, r_cross, r_mut)
-                c1_feasible = check_design_feasibility(c1[0], c1[1], c1[2], c1[3], c1[4], c1[5], l_ratio_min, False)
-                c2_feasible = check_design_feasibility(c2[0], c2[1], c2[2], c2[3], c2[4], c2[5], l_ratio_min, False)
+                c1_feasible = check_design_feasibility(c1[0], c1[1], c1[2], c1[3], c1[4], c1[5], c1[6], l_ratio_min, False)
+                c2_feasible = check_design_feasibility(c2[0], c2[1], c2[2], c2[3], c2[4], c2[5], c1[6], l_ratio_min, False)
                 if (c1_feasible or c2_feasible) is False:
                     feasible = False
                     loop_counter += 1
@@ -292,10 +352,10 @@ def genetic_algorithm(objective, n_iter, n_pop, r_cross, r_mut, l_ratio_min):
     
 
 if __name__ == '__main__':
-    n_iter = 100
-    n_pop = 50
+    n_iter = 200
+    n_pop = 200
     r_cross = 0.9
-    r_mut = 0.1
+    r_mut = 0.3
     l_ratio_min = 0.5
     
     [best, score], best_evals = genetic_algorithm(objective_function, n_iter, n_pop, r_cross, r_mut, l_ratio_min)

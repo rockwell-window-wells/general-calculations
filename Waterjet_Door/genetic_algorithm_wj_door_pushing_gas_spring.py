@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 23 14:17:54 2022
+Created on Fri Jun 24 10:28:50 2022
 
 @author: Ryan.Larson
 """
@@ -15,13 +15,10 @@ def objective_function(parameters):
     # Read in parameter values from parameter list
     ds = parameters[0]
     S = parameters[1]
-    wp = parameters[2]
-    hp = parameters[3]
+    xp = parameters[2]
+    yp = parameters[3]
     l_ext = parameters[4]
     l_comp = parameters[5]
-    
-    # Assume the design is feasible
-    feasible = True
 
     ### Fixed parameters ###
     Ldoor = 45.0            # Length of door
@@ -46,9 +43,8 @@ def objective_function(parameters):
 
     ### Derived parameters ###
     # S:
-    xs = wdoor*np.cos(thetarad) + ds*np.sin(thetarad)
-    ys = ds*np.cos(thetarad) - wdoor*np.sin(thetarad)
-    Ls = np.sqrt(wdoor**2 + ds**2)
+    xs = ds*np.cos(thetarad)
+    ys = ds*np.sin(thetarad)
 
     # W:
     xw = wdoor*np.cos(thetarad) + Lcm*np.sin(thetarad)
@@ -61,29 +57,27 @@ def objective_function(parameters):
     Lf = np.sqrt(wdoor**2 + Ldoor**2)
 
     # Gas spring length
-    ls = np.sqrt((xs - wp)**2 + (hp - ys)**2)
-    lsmin = np.min(ls)
-    lsmax = np.max(ls)
+    ls = np.sqrt((np.abs(xp) + xs)**2 + (yp - ys)**2)
+    maxspring = np.around(max(ls), 1)
+    minspring = np.around(min(ls), 1)
     
-    if lsmax > l_ext:
+    if maxspring > l_ext:
         feasible = False
-    if lsmin < l_comp:
+    if minspring < l_comp:
         feasible = False
 
     # Angles
-    phi = np.arctan((hp-ys)/(xs-wp))
-    beta = np.arctan(ys/xs)
     gamma = np.arctan(yw/xw)
     kappa = np.arctan(yf/xf)
-    alpha = beta + phi
     psi = np.pi/2 - gamma
-
+    phi = np.arctan((yp-ys)/(np.abs(xp)+xs))
+    beta = thetarad + phi
 
     ### Force and extension ###
     force = np.zeros(thetarad.shape)
     for i in range(len(thetarad)):
         angle = thetarad[i]
-        force[i] = (W*Lw*np.sin(psi[i]) - ns*S*Ls*np.sin(alpha[i]) - kappa_tor*angle*nsprings) / Lf
+        force[i] = (W*Lw*np.sin(psi[i]) - ns*S*ds*np.sin(beta[i])  - kappa_tor*angle*nsprings) / Lf
 
     # Minimize the range between the min and max forces
     minabsforce = np.abs(min(force))
@@ -95,12 +89,12 @@ def objective_function(parameters):
 
 def generate_feasible_individual(l_ratio_min):
     # Define range for inputs
-    ds_min, ds_max = 1.0, 30.0
-    S_min, S_max = 5.0, 500.0
-    wp_min, wp_max = -15.0, 5.0
-    hp_min, hp_max = 10.0, 16.5
-    l_ext_min, l_ext_max = 15.0, 35.0
-    l_comp_min, l_comp_max = 5.0, 15.0
+    ds_min, ds_max = 1.0, 17.0
+    S_min, S_max = 5.0, 250.0
+    xp_min, xp_max = -8.25, -1.0
+    yp_min, yp_max = -0.75, 2.0
+    l_ext_min, l_ext_max = 16.0, 35.5
+    l_comp_min, l_comp_max = 17.63, 22.0
     
     # l_ratio_min = 0.55
     
@@ -109,8 +103,8 @@ def generate_feasible_individual(l_ratio_min):
     while feasible == False:
         ds = np.random.uniform(ds_min, ds_max)
         S = np.random.uniform(S_min, S_max)
-        wp = np.random.uniform(wp_min, wp_max)
-        hp = np.random.uniform(hp_min, hp_max)
+        xp = np.random.uniform(xp_min, xp_max)
+        yp = np.random.uniform(yp_min, yp_max)
         l_comp = np.random.uniform(l_comp_min, l_comp_max)
         if l_comp/l_ratio_min <= l_ext_max:
             l_ext_alt = l_comp/l_ratio_min
@@ -119,16 +113,15 @@ def generate_feasible_individual(l_ratio_min):
             
         l_ext = max(np.random.uniform(l_comp, l_ext_max), l_ext_alt)
         
-        feasible = check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, True)
+        feasible = check_design_feasibility(ds, S, xp, yp, l_ext, l_comp, l_ratio_min, True)
             
-    parameters = [ds, S, wp, hp, l_ext, l_comp]
+    parameters = [ds, S, xp, yp, l_ext, l_comp]
     # print("Parameters: {}".format(parameters))
-    print("\n\nFEASIBLE INDIVIDUAL GENERATED!\n\n")
     
     return parameters
 
 
-def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain):
+def check_design_feasibility(ds, S, xp, yp, l_ext, l_comp, l_ratio_min, explain):
     feasible = True
     
     while True:
@@ -156,11 +149,11 @@ def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain)
         theta = np.linspace(min_angle, max_angle, num=npts, endpoint=True)
         thetarad = theta*np.pi/180.0
 
-        xs = wdoor*np.cos(thetarad) + ds*np.sin(thetarad)
-        ys = ds*np.cos(thetarad) - wdoor*np.sin(thetarad)
+        xs = ds*np.cos(thetarad)
+        ys = ds*np.sin(thetarad)
     
         # Gas spring length
-        ls = np.sqrt((xs - wp)**2 + (hp - ys)**2)
+        ls = np.sqrt((np.abs(xp) + xs)**2 + (yp - ys)**2)
         maxspring = np.around(np.max(ls), 1)    # Maximum spring extension
         minspring = np.around(np.min(ls), 1)    # Minimum spring extension
         
@@ -179,7 +172,6 @@ def check_design_feasibility(ds, S, wp, hp, l_ext, l_comp, l_ratio_min, explain)
             break
         
     return feasible
-
 
 # Tournament selection
 def selection(pop, scores, k=3):
@@ -213,12 +205,12 @@ def crossover(p1, p2, r_cross, r_mut):
 # Mutation
 def mutation(individual, r_mut):
     # Define range for inputs
-    ds_min, ds_max = 1.0, 30.0
-    S_min, S_max = 5.0, 500.0
-    wp_min, wp_max = -15.0, 5.0
-    hp_min, hp_max = 10.0, 16.5
-    l_ext_min, l_ext_max = 15.0, 35.0
-    l_comp_min, l_comp_max = 5.0, 15.0        
+    ds_min, ds_max = 1.0, 17.0
+    S_min, S_max = 5.0, 250.0
+    xp_min, xp_max = -8.25, -1.0
+    yp_min, yp_max = -0.75, 2.0
+    l_ext_min, l_ext_max = 16.0, 35.5
+    l_comp_min, l_comp_max = 17.63, 22.0
         
     for i in range(len(individual)):
         # Check for a mutation
@@ -228,9 +220,9 @@ def mutation(individual, r_mut):
             elif i == 1:
                 individual[i] = np.random.uniform(S_min, S_max)
             elif i == 1:
-                individual[i] = np.random.uniform(wp_min, wp_max)
+                individual[i] = np.random.uniform(xp_min, xp_max)
             elif i == 1:
-                individual[i] = np.random.uniform(hp_min, hp_max)
+                individual[i] = np.random.uniform(yp_min, yp_max)
             elif i == 1:
                 individual[i] = np.random.uniform(l_ext_min, l_ext_max)
             elif i == 1:
@@ -292,10 +284,10 @@ def genetic_algorithm(objective, n_iter, n_pop, r_cross, r_mut, l_ratio_min):
     
 
 if __name__ == '__main__':
-    n_iter = 100
-    n_pop = 50
+    n_iter = 400
+    n_pop = 200
     r_cross = 0.9
-    r_mut = 0.1
+    r_mut = 0.3
     l_ratio_min = 0.5
     
     [best, score], best_evals = genetic_algorithm(objective_function, n_iter, n_pop, r_cross, r_mut, l_ratio_min)
