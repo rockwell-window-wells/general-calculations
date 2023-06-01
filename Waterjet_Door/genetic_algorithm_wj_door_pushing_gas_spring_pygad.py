@@ -7,6 +7,7 @@ Created on Mon May 15 10:24:55 2023
 
 import numpy as np
 import pygad
+import logging
 
 def fitness_func(ga_instance, solution, solution_idx):
     # Read in parameter values from parameter list
@@ -122,13 +123,34 @@ def fitness_func(ga_instance, solution, solution_idx):
 
     return fitness
 
+def on_generation(ga_instance):
+    ga_instance.logger.info("Generation = {generation}".format(generation=ga_instance.generations_completed))
+    ga_instance.logger.info("Fitness    = {fitness}".format(fitness=ga_instance.best_solution(pop_fitness=ga_instance.last_generation_fitness)[1]))
 
-num_generations = 200
-num_parents_mating = 2
+level = logging.DEBUG
+name = 'logfile.txt'
+
+logger = logging.getLogger(name)
+logger.setLevel(level)
+
+file_handler = logging.FileHandler(name,'a+','utf-8')
+file_handler.setLevel(logging.DEBUG)
+file_format = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(file_format)
+logger.addHandler(file_handler)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_format = logging.Formatter('%(message)s')
+console_handler.setFormatter(console_format)
+logger.addHandler(console_handler)
+
+num_generations = 300
+num_parents_mating = 10
 
 fitness_function = fitness_func
 
-sol_per_pop = 8
+sol_per_pop = 50
 num_genes = 7
 # num_genes = len(function_inputs)
 
@@ -163,7 +185,9 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        keep_parents=keep_parents,
                        crossover_type=crossover_type,
                        mutation_type=mutation_type,
-                       mutation_percent_genes=mutation_percent_genes)
+                       mutation_percent_genes=mutation_percent_genes,
+                       on_generation=on_generation,
+                       logger=logger)
 
 ga_instance.run()
 
